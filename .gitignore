@@ -1,0 +1,18 @@
+# All device-specific configuration, keys, backups and raw research stay here.
+.private/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# Defense in depth for accidentally copied credentials and packages.
+*.key
+*.pem
+*.pub
+*.ipk
+known_hosts*
+id_*
+*.log
+*.tar
+*.tgz
+*.zip
+.env*

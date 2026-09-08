@@ -1,0 +1,10 @@
+#!/bin/sh
+# Hide only the dedicated LG Channels unit, leaving its firmware file intact.
+set -eu
+unit=/etc/systemd/system/dmost.service
+if [ -e /var/luna/preferences/lg_owner_channels_enabled ]; then exit 0; fi
+if ! awk -v p="$unit" '$2 == p {found=1} END {exit !found}' /proc/mounts; then
+    mount --bind /dev/null "$unit"
+fi
+systemctl daemon-reload
+systemctl stop dmost.service

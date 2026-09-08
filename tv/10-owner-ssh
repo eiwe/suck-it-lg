@@ -1,0 +1,14 @@
+#!/bin/sh
+set -eu
+service_dir=/media/developer/apps/usr/palm/services/org.webosbrew.hbchannel.service
+pidfile=/var/run/dropbear.pid
+mkdir -p /var/lib/webosbrew/sshd
+if [ -s "$pidfile" ]; then
+    oldpid=$(cat "$pidfile")
+    case "$oldpid" in ''|*[!0-9]*) exit 1 ;; esac
+    if [ -r "/proc/$oldpid/comm" ] && [ "$(cat "/proc/$oldpid/comm")" = dropbear ]; then
+        kill "$oldpid"
+        sleep 1
+    fi
+fi
+exec "$service_dir/bin/dropbear" -R -s -j -k -P "$pidfile"

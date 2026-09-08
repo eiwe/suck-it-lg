@@ -1,0 +1,23 @@
+#!/bin/sh
+# Rendered by lgprivacy.py with a validated private IPv4 address.
+set -eu
+if [ -e /var/luna/preferences/lg_owner_network_privacy_off ]; then exit 0; fi
+chain=LG_OWNER_PRIVACY
+iptables -N "$chain" 2>/dev/null || true
+if ! iptables -C OUTPUT -j "$chain" 2>/dev/null; then
+    # This chain belongs exclusively to this project.
+    iptables -F "$chain"
+    iptables -A "$chain" -o lo -j ACCEPT
+    iptables -A "$chain" -d @ADMIN_IPV4@ -p tcp --sport 22 -j ACCEPT
+    iptables -A "$chain" -p udp --sport 68 --dport 67 -j ACCEPT
+    iptables -A "$chain" -j DROP
+    iptables -I OUTPUT 1 -j "$chain"
+else
+    # Never silently leave an old administrator address in place.
+    iptables -C "$chain" -d @ADMIN_IPV4@ -p tcp --sport 22 -j ACCEPT
+    iptables -C "$chain" -j DROP
+fi
+for iface in eth0 wlan0 p2p0 sit0; do
+    path="/proc/sys/net/ipv6/conf/$iface/disable_ipv6"
+    if [ -e "$path" ]; then printf '1\n' > "$path"; fi
+done
