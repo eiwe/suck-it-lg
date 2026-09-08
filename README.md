@@ -109,11 +109,13 @@ The TV's own streaming apps, app downloads, casting, SSAP pairing, network time,
 
 ### Requirements
 
-- Your own compatible LG TV, already rooted with Homebrew Channel installed.
+- Your own LG TV with firmware compatible with the documented rooting procedure. **You do not need to root it or install Homebrew Channel beforehand:** step 1 uses SlopBro through this repository's adapter to do that. If both are already working, skip the rooting attempt and reuse your existing installation.
 - A trusted LAN for the initial pairing/root shell. Rooting may initially expose an unauthenticated root Telnet service; secure it promptly and do not forward it through your router.
 - A Linux/macOS administrator workstation with Python 3.9+ and OpenSSH. The scripts use the Python standard library. The TV needs Python 3, the tested LG settings API, systemd, working IPv4 iptables, and the expected interface layout.
 - Stable private IPv4 addresses for both TV and workstation. Use router DHCP reservations. **An administrator-address change can break SSH replies under this firewall.**
 - Read the rollback section before applying changes. Do not assume Homebrew apps or exploits support every LG model.
+
+Root access and Homebrew Channel are prerequisites for `lgprivacy.py install`, the privacy-configuration stage. The complete workflow establishes them first using the separately downloaded upstream SlopBro exploit; the privacy installer itself does not perform the exploit.
 
 ### 1. Root and install Homebrew Channel
 
