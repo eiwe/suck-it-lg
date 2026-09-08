@@ -1,4 +1,81 @@
-# LG webOS privacy for an HDMI-only TV
+# ⚠️ USE AT YOUR OWN RISK
+
+> [!CAUTION]
+> **ROOTING OR MODIFYING YOUR TV CAN BRICK IT, BREAK FEATURES, LOSE SETTINGS, OR LOCK YOU OUT. RECOVERY IS NOT GUARANTEED.**
+>
+> This is an experimental, owner-maintained project, provided **as is, without warranties or guarantees**. It has been tested on one LG C2 and the specific firmware documented below. It may affect warranty or support eligibility. You are responsible for deciding whether to run it and for the consequences—including commands executed by an AI agent on your behalf.
+>
+> **AI agents can make mistakes.** Giving these instructions to Codex, Claude, or another agent does not make the procedure safe or compatible with your TV. Back up first, keep a recovery route, and do not bypass a failed compatibility or access check. These changes do not guarantee that every form of tracking or local collection stops.
+
+## Agent instructions — Codex, Claude, and other local agents
+
+This project configures an owner-controlled LG webOS TV for HDMI-only use: establish root where supported, secure SSH, decline LG agreements, restrict network access, optionally disable the LG Channels backend, and verify the result after restart. The agent should perform the computer-side work and guide the owner through physical TV interactions.
+
+Use a local agent harness that can read this checkout, run Python/OpenSSH, reach the TV on the owner's LAN, and consult upstream documentation. A chat-only session or remote sandbox without LAN access cannot execute this end to end. Keep the harness's normal permission controls; this project does not require changing Codex/Claude global defaults or disabling approval safeguards.
+
+### Owner: give the agent this task
+
+Open the repository in your agent's workspace and paste the following. Fill in the details you know; the agent should determine or ask for the rest before dependent actions.
+
+```text
+Read README.md, docs/case-study.md, lgprivacy.py, and the scripts under tv/ and
+scripts/ before changing anything. Follow the Agent instructions in README.md.
+
+This is my TV, and I authorize the compatible rooting procedure and the
+HDMI-only privacy setup described here, including secure key-only SSH,
+declining all LG agreements, blocking the TV's network access, and disabling
+LG Channels. I understand the use-at-your-own-risk disclaimer. Carry out the
+computer-side work through verification and recovery documentation; do not
+stop after giving me a plan or a list of commands.
+
+TV address: <my TV's private IPv4 address>
+TV model and firmware: <known values, or determine with my help>
+Administrator workstation address: <determine the source IPv4 used to reach the TV>
+Current root/Homebrew status: <known status, or inspect>
+Usage: HDMI only, with a separately networked Apple TV or other external source.
+Restart timing: <now is OK, or my preferred maintenance window>
+
+Preserve existing keys, configuration, backups, and unrelated local changes.
+Keep all device-specific data and credentials under ignored .private/.
+Do not publish files, invite collaborators, or change repository visibility
+unless I separately ask. Ask me only for missing information, required TV
+interactions, or actions beyond this scope. Report what actually passed,
+what remains uncertain, and how I can undo the changes.
+```
+
+If the owner wants to keep webOS apps, casting, or LG Channels, amend that task first. The bundled firewall deliberately prevents their network communication; do not install it under an assumption that those features will continue working.
+
+### Agent: execute this runbook
+
+1. **Read and establish scope.** Read the complete README, case study, installer, TV hooks, and applicable workspace instructions. Inspect `git status` and existing `.private/` state without displaying secrets. Establish ownership/authorization, HDMI-only usage, the requested Channels behavior, and restart timing from the owner's task. Reuse existing authorization; do not ask the owner to reconfirm every routine step. Use placeholders only in documentation, never as executable addresses.
+
+2. **Identify the actual device and route.** Determine the model, firmware, webOS version, TV IPv4 address, and workstation source IPv4 for that TV. Use existing authenticated access or ask the owner for the TV's information-screen values. Plan stable DHCP reservations with the owner. Do not scan unrelated devices or modify router settings without authorization. The tested configuration is OLED55C2AUA / firmware 33.31.24 / webOS 10.3.0-2504. A similar model name or a successful network connection is not proof of exploit compatibility.
+
+3. **Check compatibility before rooting.** Consult the linked upstream SlopBro and Homebrew documentation for the actual firmware and inspect the pinned code. Keep the owner on the current firmware during this procedure; do not update, downgrade, factory-reset, overwrite signed partitions, or disable OLED protections as a shortcut. If compatibility is unknown, continue read-only research and explain the specific uncertainty before attempting an exploit. Never automatically add `--allow-untested` to get past a failed check.
+
+4. **Prepare private state and prerequisites.** Use Python 3.9+ and OpenSSH on the workstation. Keep keys, pairing state, downloaded assets, upstream checkouts, raw reports, and device-specific configuration inside `.private/` with restrictive permissions. If `.private/config.json` and its key already exist, validate and reuse them; do not rerun `init` over existing state. For a new setup, run `python3 lgprivacy.py init --host TV_IP --admin-ip ADMIN_IP` with validated actual addresses. Read the rollback commands before changing the TV. Run `python3 -m unittest discover -s tests -v` to check the local tooling.
+
+5. **Establish root only if needed.** Check for working owner root access and Homebrew first; skip exploitation if they already work. Otherwise follow human step 1 below: clone SlopBro into `.private/slopbro`, select the documented revision, inspect downloaded assets and their provenance/checksums, and run `scripts/run-slopbro.py` with the correct device, workstation, and webOS version. The adapter executes the upstream exploit; it is not a compatibility detector. If needed, add only a TV-source-specific inbound firewall exception for its chosen local server port, recording how to remove it. Guide the owner through pairing and the root-installation restart. Require `id -u` to return `0` afterward; a success message is insufficient. Remove the temporary workstation firewall exception when the rooting server is no longer needed.
+
+6. **Secure access before restricting networking.** Run `python3 lgprivacy.py bootstrap-commands` and execute the emitted short commands in the existing owner root shell. Send only the public key to the TV, preserve existing authorized keys, and keep the current access path until a new key-based SSH session works. Use `python3 lgprivacy.py trust-host`; inspect the TV's host fingerprint through the trusted bootstrap path where available. Do not silently accept a changed host key. Do not expose root Telnet/SSH to the Internet. The installer subsequently replaces the SSH startup behavior and stops Telnet after verifying a fresh root connection.
+
+7. **Preflight, back up, and apply.** Run `python3 lgprivacy.py preflight`. If addresses, interfaces, tools, settings schema, or existing firewall rules do not match expectations, investigate rather than weakening the checks. Then run `python3 lgprivacy.py install --disable-channels` for the authorized full HDMI-only setup, or omit the Channels option if the owner requested that. The installer saves private local settings backups and TV-side startup-file backups. Use the live LG settings API; do not repeat the failed direct consent-cache editing method. A failure can leave earlier changes applied: inspect the error and actual state, preserve access, and use targeted rollback instead of blindly retrying.
+
+8. **Verify the running TV and persistence.** Run `python3 lgprivacy.py verify --channels` (omit `--channels` if not requested). At the authorized restart time, use the owner root shell to run `sync; /sbin/reboot`. Wait for SSH and startup hooks to finish, then run verification again. Check root, authoritative consent state, selected privacy settings, exact firewall rules, external IPv6, blocked public probes, SSH/Telnet state, and the optional Channels backend. The original TV's boot ID stayed unchanged during restarts, so use uptime reset and fresh checks. Treat an unexpected failure as incomplete work; do not rewrite the verifier to make it pass.
+
+9. **Report limits and handle prompts honestly.** `dbgLogUpload` can reset to true; report it as a known limitation rather than claiming it stayed off. Network and Channels hooks have an early-startup gap. If the Channels prompt recurs, inspect the logs and trigger; a masked service alone is not proof the screen never displayed a prompt. Do not accept agreements to dismiss a dialog or globally disable notifications without investigating. The network block prevents intended post-startup uploads but does not establish zero local collection.
+
+10. **Finish with recovery and a private handoff.** Record the tested model/firmware, changes, backup locations, verification results, unresolved issues, and exact rollback commands in private session notes. Demonstrate that the owner still has maintenance access before declaring completion. Recommend unplugging the TV's Ethernet and disabling its Wi-Fi for the strongest HDMI-only isolation; explain that SSH needs temporary reconnection. Keep the streaming box independently connected. If the owner also requests Git changes, stage only shareable source/docs, inspect the staged diff, and run `python3 scripts/check-staged-secrets.py` before committing. Never upload `.private/` or a ZIP of the entire checkout.
+
+### What the owner still needs to do
+
+The agent can run the workstation commands and authenticated TV-side operations. The owner may still need to supply information-screen values, approve on-TV pairing, operate an inaccessible initial root shell, or physically disconnect Ethernet/disable Wi-Fi. Request those interactions when required and continue independent work while waiting. Do not claim to have completed a physical action the owner has not performed.
+
+## Human instructions — optional manual walkthrough
+
+Prefer doing the work yourself? The full manual procedure and supporting reference material follow. They describe the same configuration and limitations used by the agent runbook.
+
+### LG webOS privacy for an HDMI-only TV
 
 Use a rooted LG TV as an HDMI display while retaining owner-controlled SSH access. This project records a working LG C2 setup and provides scripts to reproduce its privacy settings, network restrictions, and LG Channels service block.
 
@@ -6,7 +83,7 @@ Use a rooted LG TV as an HDMI display while retaining owner-controlled SSH acces
 
 **Best protection for this use case:** unplug the LG's Ethernet cable and disable its Wi-Fi. Keep your Apple TV, console, or streaming box connected to the network independently. Root is useful for maintenance and suppressing unwanted services, but physical network disconnection requires no jailbreak.
 
-## What it changes
+### What it changes
 
 | Area | Result |
 | --- | --- |
@@ -22,7 +99,7 @@ Use a rooted LG TV as an HDMI display while retaining owner-controlled SSH acces
 
 The TV's own streaming apps, app downloads, casting, SSAP pairing, network time, and other network services will not work with this firewall. HDMI display use does not require those services. The Apple TV's network connection is independent.
 
-### Limits of the result
+#### Limits of the result
 
 - Homebrew startup hooks run after part of webOS has already started. There is an **early-boot gap** for network access and potentially for the LG Channels invitation. A router-enforced IPv4/IPv6 block or physical disconnection closes the network gap.
 - A few blocked TCP probes plus firewall inspection verify the configured restriction; they are not an exhaustive traffic capture or proof of zero local data collection.
@@ -30,7 +107,7 @@ The TV's own streaming apps, app downloads, casting, SSAP pairing, network time,
 - Root does not unlock arbitrary hardware capabilities, guarantee firmware downgrades, or provide a supported replacement OS. Do not overwrite signed firmware partitions.
 - Keep OLED protection functions, including pixel cleaning and screen protection, intact. This project does not alter them.
 
-## Requirements
+### Requirements
 
 - Your own compatible LG TV, already rooted with Homebrew Channel installed.
 - A trusted LAN for the initial pairing/root shell. Rooting may initially expose an unauthenticated root Telnet service; secure it promptly and do not forward it through your router.
@@ -38,7 +115,7 @@ The TV's own streaming apps, app downloads, casting, SSAP pairing, network time,
 - Stable private IPv4 addresses for both TV and workstation. Use router DHCP reservations. **An administrator-address change can break SSH replies under this firewall.**
 - Read the rollback section before applying changes. Do not assume Homebrew apps or exploits support every LG model.
 
-## 1. Root and install Homebrew Channel
+### 1. Root and install Homebrew Channel
 
 First clone this repository and enter its directory. A private GitHub repository requires access from its owner. Run subsequent commands from the repository root unless stated otherwise.
 
@@ -74,7 +151,7 @@ This repository does not vendor the exploit, package, or LG firmware files. A pi
 
 The included adapter reproduces the threaded-server fix without changing the upstream payload. It requires the clean pinned revision, binds only to the supplied workstation address, uses TCP 44767 by default, and refuses to silently switch ports. Permit inbound TCP to that port **only from your TV's address** using your workstation's firewall tools, if needed; remove that exception when done. Firewall syntax varies by operating system. Pairing still requires confirmation on the TV. If a previously launched overlay is stale, exit it and rerun the attempt rather than accepting an apparent success without a subsequent root check. The adapter itself has not been used to repeat the exploit on an additional TV; it packages the server adjustment used in the original session.
 
-## 2. Configure a dedicated SSH key
+### 2. Configure a dedicated SSH key
 
 From the repository root, replace the example addresses with your TV and workstation addresses:
 
@@ -98,7 +175,7 @@ Check the host fingerprint using your trusted root-shell/bootstrap session when 
 
 The preflight checks root, SSH client address, webOS version, required tools, and interface names. It makes two public TCP connection probes, which may succeed before the firewall is installed; this is expected.
 
-## 3. Apply and verify
+### 3. Apply and verify
 
 This is designed for **HDMI-only** use and deliberately declines **all** LG agreements, including Terms/Privacy. Read the changes table before running it.
 
@@ -130,7 +207,7 @@ If a check fails during startup, allow initialization to finish and check once m
 
 For the strongest privacy, disconnect the TV's Ethernet and disable Wi-Fi after maintenance. Reconnect temporarily when you need SSH. Reserve the addresses so the firewall still permits maintenance after reconnecting.
 
-## LG Channels prompt: what we found
+### LG Channels prompt: what we found
 
 The C2 repeatedly offered to set up LG Channels even with `channelplus` and `channelplusPopup` both off. Logs identified the `channelMapEmptyPopup` path. Inspection of the installed UI code showed that this path displayed the invitation despite an existing dismissal-history record.
 
@@ -138,7 +215,7 @@ The optional fix masks `/etc/systemd/system/dmost.service` with a bind mount fro
 
 LG also documents an official Disable LG Channels setting under the app's MY → Settings menu on newer sets. In this case the ordinary off settings were already insufficient. See [LG's instructions](https://www.lg.com/us/support/help-library/lg-tv-how-do-i-watch-lg-channels--20155049524788).
 
-## Rollback and recovery
+### Rollback and recovery
 
 Keep key-based SSH available. These commands do not require rerunning SlopBro:
 
@@ -173,7 +250,7 @@ If your workstation's address changes, first try restoring its reserved address 
 
 To remove this project's hooks completely, first run the relevant rollback commands, then remove **only** `00-network-privacy`, `10-owner-ssh`, and `20-disable-lg-channels` from `/var/lib/webosbrew/init.d/` using an authenticated root shell. Removing `10-owner-ssh` removes the enforcement of password-disabled SSH at subsequent boot; review Homebrew's SSH settings before doing so. Homebrew itself and firmware-update blocking are separate and are not uninstalled by these rollback commands.
 
-## More things root enables
+### More things root enables
 
 SlopBro establishes persistent administrator access and installs Homebrew Channel. The broader ecosystem includes:
 
@@ -185,7 +262,7 @@ SlopBro establishes persistent administrator access and installs Homebrew Channe
 
 These are ecosystem capabilities, not add-ons tested or installed by this project. Networked apps would require carefully chosen firewall exceptions. For an Apple TV owner, remote remapping and HDMI ambient lighting are likely more relevant than adding another streaming platform.
 
-## Research and case notes
+### Research and case notes
 
 The motivation was LG viewing-data collection, including ACR associated with external HDMI content. Turning off only personalized advertisements is not the same as preventing all uploads.
 
@@ -196,7 +273,7 @@ The motivation was LG viewing-data collection, including ACR associated with ext
 
 See [the sanitized case notes](docs/case-study.md) for working and unsuccessful approaches. No user credentials, MAC addresses, serial numbers, private LAN addresses, raw consent documents, logs, or LG proprietary source are included.
 
-## Development and sharing
+### Development and sharing
 
 ```sh
 python3 -m unittest discover -s tests -v
